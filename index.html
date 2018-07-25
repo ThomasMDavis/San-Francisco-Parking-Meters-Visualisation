@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Parking Meters in San Francisco</title>
+		<meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+		<meta charset="utf-8">
+		<style>
+			html, body {
+				font-family: 'Arial', sans-serif;
+				font-size: 12px;
+				background-color: #EEEEEE;
+				height: 100%;
+				margin: 0px;
+				padding: 0px;
+				overflow: hidden;
+			}
+			
+			input[type=button] {
+				height: 25px;
+				width: 250px;
+				font-size: 11px;
+				font-weight: bold;
+				text-align: center;
+				padding-left: 10px;
+				padding-right: 10px;
+				background-color: #FAFAFA;
+				border: 1px solid #CCCCCC;
+			}
+			
+			.buttons {
+				padding-bottom: 10px;
+			}
+			
+			.bold {
+				font-weight: bold;
+			}
+			
+			#map {
+				height: 100%;
+				position: fixed;
+				bottom: 0px;
+			}
+			
+			#info {
+				text-align: center;
+			}
+		</style>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+		<script src="markerclusterer.js"></script>
+		<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBIi2ZL3iW62iMGMRbxo5EpgOtA85YrJ4M" async defer></script>
+		<script>
+		$(window).load(function() {
+			var url = 'https://data.sfgov.org/resource/f5zc-5xs3.json?';
+				var blackCount  = 0;
+				var brownCount  = 0;
+				var greenCount  = 0;
+				var greyCount   = 0;
+				var purpleCount = 0;
+				var redCount    = 0;
+				var yellowCount = 0;
+			
+			$.ajax({
+				url: url,
+				type: "GET",
+				data: {
+				  "$limit" : 50000,
+				  "$$app_token" : null
+				}
+			}).done(function(data) {
+				$("#info").html("Information on <span class='bold'>" + data.length +
+								"</span> parking meters in San Francisco!<br />" +
+								"It's not the prettiest or fastest application yet" +
+								" - Road Map view and lower frequency cap_colours offer the best experience!<br />" +
+								"<span class='bold'>DEFAULT VIEW:</span> First 1000 data entries; press the buttons to view a specific cap_colour.");
+				console.log(data);
+			});
+			
+			var map = new google.maps.Map(document.getElementById('map'), {
+					center: {lat: 37.76, lng: -122.43},
+					zoom: 13
+			});
+			var infoWindow = new google.maps.InfoWindow();
+			var markers = [];
+			var markerCluster = new MarkerClusterer(map, markers, {imagePath: 'images/m'});
+			var url = 'https://data.sfgov.org/resource/f5zc-5xs3.json?$limit=1000';
+			var btn = '<input class="clear" id="Black" type="button" value="Black: Motorcycle Parking"></input>'                 +
+					  '<input class="clear" id="Brown" type="button" value="Brown: Tour Bus Parking"></input>'                   +
+					  '<input class="clear" id="Green" type="button" value="Green: Short Term Parking"></input>'                 +
+					  '<input class="clear" id="Grey" type="button" value="Grey: General Metered Parking"></input>'              +
+					  '<input class="clear" id="Purple" type="button" value="Purple: Boat Trailer Parking"></input>'             +
+					  '<input class="clear" id="Red" type="button" value="Red: 6whl Commercial Vehicle Parking"></input>'        +
+					  '<input class="clear" id="Yellow" type="button" value="Yellow: Commercial Vehicle Parking"></input>';
+					  
+			$(".buttons").html(btn);
+			$("input").css({"margin-left":"5px", "margin-right":"5px"});
+			
+			$.getJSON(url, function(data, status) {
+				$.each(data, function(i, entry) {
+				
+					// Clean-up some null/boolean values for better user experience.
+					if (entry.sfparkarea == null) {
+						var preppedSF = "No";
+					}
+					else {
+						var preppedSF = entry.sfparkarea;
+					}
+					
+					if (entry.smart_mete == "N") {
+						var preppedSmartMeter = "No";
+					}
+					else {
+						var preppedSmartMeter = "Yes";
+					}
+					
+					if (entry.activesens == "N") {
+						var preppedActiveSens = "No";
+					}
+					else {
+						var preppedActiveSens = "Yes";
+					}
+					
+					// Colour-picker.
+					var label = {text: entry.meter_type, color: "#000000", fontSize: "12px"};
+					
+					if (entry.cap_color == "Brown") {
+						var image = {url: "images/brown-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+						var label = {text: entry.meter_type, color: "#FFFFFF", fontSize: "12px"};
+					}
+					else if (entry.cap_color == "Green") {
+						var image = {url: "images/green-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+					}
+					else if (entry.cap_color == "Grey") {
+						var image = {url: "images/grey-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+					}
+					else if (entry.cap_color == "Purple") {
+						var image = {url: "images/purple-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+					}
+					else if (entry.cap_color == "Red") {
+						var image = {url: "images/red-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+					}
+					else if (entry.cap_color == "Yellow") {
+						var image = {url: "images/yellow-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+					}
+					else {
+						var image = {url: "images/black-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+						var label = {text: entry.meter_type, color: "#FFFFFF", fontSize: "12px"};
+					}
+					
+					var latLng = new google.maps.LatLng(parseFloat(entry.latitude), parseFloat(entry.longitude));
+					var marker = new google.maps.Marker({
+						'position': latLng,
+						'map': map,
+						'icon': image,
+						'title': "Post ID: " + entry.post_id,
+						'label': label,
+						'content': "<p>" +
+						           "<span class='bold'>SF Park Area?</span> "               + preppedSF +         "<br />" +
+								   "<span class='bold'>Post ID:</span> "                    + entry.post_id +     "<br />" +
+								   "<span class='bold'>MS ID:</span> "                      + entry.ms_id +       "<br />" +
+								   "<span class='bold'>MS Space ID:</span> "                + entry.ms_space_num + "<br />" +
+								   "<span class='bold'>Smart Meter?</span> "                + preppedSmartMeter + "<br />" +
+								   "<span class='bold'>Active Occupany Sensor?</span> "     + preppedActiveSens + "<br />" +
+								   "<span class='bold'>Agency:</span> "                     + entry.jurisdicti +  "<br />" +
+								   "<span class='bold'>On-street or off-street?</span> "    + entry.on_off_str +  "<br />" +
+								   "<span class='bold'>Off-street Parking Space ID:</span> " + entry.osp_id +      "<br />" +
+								   "<span class='bold'>Street Number:</span> "              + entry.street_num +  "<br />" +
+								   "<span class='bold'>Street Name:</span> "                + entry.street_name + "<br />" +
+								   "<span class='bold'>Street Centerline Segment:</span> "  + entry.street_seg_ctrln_id + "<br />" +
+								   "<span class='bold'>Rate Area:</span> "                  + entry.ratearea +    "<br />" +
+								   "<span class='bold'>Coordinates:</span> "                + latLng.toString() + 
+								   "</p>"
+					});
+					markerCluster.addMarker(marker);
+					google.maps.event.addListener(marker, 'click', function() {    
+						infoWindow.setContent(this.content);
+						infoWindow.open(map, this);
+					});
+					//map.data.addListener('click', function(event) {
+					//	map.data.setStyle(function(feature) {
+					//		return {
+					//			
+					//		};
+					//	});
+					//});
+				});
+			});
+			$('.buttons').on('click', '.clear', function() {
+				var btnID = this.id;
+				var url = 'https://data.sfgov.org/resource/f5zc-5xs3.json?$limit=50000&CAP_COLOR=' + btnID;
+				markerCluster.clearMarkers();
+				markers = [];
+
+				$.getJSON(url, function(data, status) {
+					$.each(data, function(i, entry) {
+					
+						// Clean-up some null/boolean values for better user experience.
+						if (entry.sfparkarea == null) {
+							var preppedSF = "No";
+						}
+						else {
+							var preppedSF = entry.sfparkarea;
+						}
+						
+						if (entry.smart_mete == "N") {
+							var preppedSmartMeter = "No";
+						}
+						else {
+							var preppedSmartMeter = "Yes";
+						}
+						
+						if (entry.activesens == "N") {
+							var preppedActiveSens = "No";
+						}
+						else {
+							var preppedActiveSens = "Yes";
+						}
+						
+						if (entry.cap_color == "Brown" || entry.cap_color == "Black") {
+							var label = {text: entry.meter_type, color: "#FFFFFF", fontSize: "12px"};
+						}
+						else {
+							var label = {text: entry.meter_type, color: "#000000", fontSize: "12px"};
+						}
+						
+						var image = {url: "images/" + btnID + "-pin.png", labelOrigin: new google.maps.Point(10, 9)};
+						var latLng = new google.maps.LatLng(parseFloat(entry.latitude), parseFloat(entry.longitude));
+						var marker = new google.maps.Marker({
+							'position': latLng,
+							'map': map,
+							'icon': image,
+							'title': "Post ID: " + entry.post_id,
+							'label': label,
+							'content': "<p>" +
+									   "<span class='bold'>SF Park Area?</span> "               + preppedSF +         "<br />" +
+									   "<span class='bold'>Post ID:</span> "                    + entry.post_id +     "<br />" +
+									   "<span class='bold'>MS ID:</span> "                      + entry.ms_id +       "<br />" +
+									   "<span class='bold'>MS Space ID:</span> "                + entry.ms_space_num + "<br />" +
+									   "<span class='bold'>Smart Meter?</span> "                + preppedSmartMeter + "<br />" +
+									   "<span class='bold'>Active Occupany Sensor?</span> "     + preppedActiveSens + "<br />" +
+									   "<span class='bold'>Agency:</span> "                     + entry.jurisdicti +  "<br />" +
+									   "<span class='bold'>On-street or off-street?</span> "    + entry.on_off_str +  "<br />" +
+									   "<span class='bold'>Off-street Parking Space ID:</span> " + entry.osp_id +      "<br />" +
+									   "<span class='bold'>Street Number:</span> "              + entry.street_num +  "<br />" +
+									   "<span class='bold'>Street Name:</span> "                + entry.street_name + "<br />" +
+									   "<span class='bold'>Street Centerline Segment:</span> "  + entry.street_seg_ctrln_id + "<br />" +
+									   "<span class='bold'>Rate Area:</span> "                  + entry.ratearea +    "<br />" +
+									   "<span class='bold'>Coordinates:</span> "                + latLng.toString() + 
+									   "</p>"
+						});
+						markerCluster.addMarker(marker);
+						google.maps.event.addListener(marker, 'click', function() {    
+							infoWindow.setContent(this.content);
+							infoWindow.open(map, this);
+						});
+					});
+				});
+			});
+		});
+		</script>
+	</head>
+	<body>
+		<div id="content">
+			<p id="info"></p>
+			<div class="buttons" align="center"></div>
+		</div>
+		<div id="map"></div>
+	</body>
+</html>
